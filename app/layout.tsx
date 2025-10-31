@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "Build unbreakable discipline with a simple daily check‑in streak.",
   metadataBase: new URL("https://discipline-tracker-nine.vercel.app"),
   openGraph: {
-    title: "Focus Streak",
+    title: "Focus Streak by SB",
     description:
       "Build unbreakable discipline with a simple daily check‑in streak.",
     url: "https://discipline-tracker-nine.vercel.app",
