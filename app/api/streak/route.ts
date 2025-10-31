@@ -52,7 +52,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  // Prefer KV if configured
+  // Prefer Upstash Redis if configured
+  if (
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    const { Redis } = await import("@upstash/redis");
+    const redis = Redis.fromEnv();
+    const record = (await redis.hgetall(`streak:${userId}`)) as any;
+    if (!record || Object.keys(record).length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json(record);
+  }
+
+  // Next: Vercel KV if configured
   if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
     const record = (await kv.hgetall(`streak:${userId}`)) as any;
     if (!record || Object.keys(record).length === 0) {
@@ -85,7 +99,21 @@ export async function POST(req: NextRequest) {
     updatedAt: now,
   };
 
-  // Prefer KV if configured
+  // Prefer Upstash Redis if configured
+  if (
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    const { Redis } = await import("@upstash/redis");
+    const redis = Redis.fromEnv();
+    await redis.hset(
+      `streak:${incoming.userId}`,
+      incoming as Record<string, unknown>
+    );
+    return NextResponse.json({ ok: true });
+  }
+
+  // Next: Vercel KV if configured
   if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
     await kv.hset(
       `streak:${incoming.userId}`,
