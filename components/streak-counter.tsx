@@ -17,7 +17,7 @@ import {
 
 interface StreakData {
   currentStreak: number;
-  lastCheckInDate: string;
+  lastCheckInDate: string | null;
   goal: number;
   lastResetDate?: string | null;
   updatedAt?: string;
@@ -68,22 +68,32 @@ export function StreakCounter() {
 
       if (pick) {
         const today = new Date().toDateString();
-        const lastCheckIn = new Date(pick.lastCheckInDate).toDateString();
-        if (today === lastCheckIn) {
-          setHasCheckedInToday(true);
-          setStreak(pick.currentStreak);
-        } else {
-          const lastCheckInDateObj = new Date(pick.lastCheckInDate);
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          if (lastCheckInDateObj.toDateString() === yesterday.toDateString()) {
+        if (pick.lastCheckInDate) {
+          const lastCheckIn = new Date(pick.lastCheckInDate).toDateString();
+          if (today === lastCheckIn) {
+            setHasCheckedInToday(true);
             setStreak(pick.currentStreak);
           } else {
-            setStreak(0);
+            const lastCheckInDateObj = new Date(pick.lastCheckInDate);
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (
+              lastCheckInDateObj.toDateString() === yesterday.toDateString()
+            ) {
+              setStreak(pick.currentStreak);
+            } else {
+              setStreak(0);
+            }
           }
+        } else {
+          setHasCheckedInToday(false);
+          setStreak(0);
         }
         setLastCheckInDate(pick.lastCheckInDate);
         setGoal(pick.goal || 90);
+        if (!pick.goal || pick.goal < 1) {
+          setShowGoalSelector(true);
+        }
         // Ensure local has the chosen state
         localStorage.setItem("streakData", JSON.stringify(pick));
       } else {
@@ -143,8 +153,8 @@ export function StreakCounter() {
     const now = new Date().toISOString();
     const data: StreakData = {
       currentStreak: 0,
-      lastCheckInDate: now,
-      goal: goal,
+      lastCheckInDate: null,
+      goal: 0,
       lastResetDate: now,
       updatedAt: now,
     };
@@ -163,7 +173,7 @@ export function StreakCounter() {
     const now = new Date().toISOString();
     const data: StreakData = {
       currentStreak: streak,
-      lastCheckInDate: lastCheckInDate || now,
+      lastCheckInDate: lastCheckInDate ?? null,
       goal: selectedGoal,
       updatedAt: now,
     };
@@ -274,16 +284,22 @@ export function StreakCounter() {
       </Button>
 
       {/* Last Check In Info */}
-      {lastCheckInDate && (
-        <p className="text-xs text-muted-foreground">
-          Last checked in:{" "}
-          {new Date(lastCheckInDate).toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-      )}
+      {(() => {
+        if (!lastCheckInDate) return null;
+        const ts = new Date(lastCheckInDate).getTime();
+        // Hide epoch placeholder (Thu, Jan 1, 1970)
+        if (!Number.isFinite(ts) || ts === 0) return null;
+        return (
+          <p className="text-xs text-muted-foreground">
+            Last checked in:{" "}
+            {new Date(lastCheckInDate).toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        );
+      })()}
 
       <div className="flex gap-3 mt-4">
         <Button

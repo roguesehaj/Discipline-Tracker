@@ -1,3 +1,12 @@
 {
-  "records": []
+  "records": [
+    {
+      "userId": "90d45c45-1f86-4e82-a5ca-5adb3bae6fa9",
+      "currentStreak": 0,
+      "lastCheckInDate": null,
+      "goal": 0,
+      "lastResetDate": "2025-10-31T17:22:06.103Z",
+      "updatedAt": "2025-10-31T17:22:06.114Z"
+    }
+  ]
 }

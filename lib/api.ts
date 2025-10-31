@@ -1,7 +1,7 @@
 export type StreakPayload = {
   userId: string;
   currentStreak: number;
-  lastCheckInDate: string;
+  lastCheckInDate: string | null;
   goal: number;
   lastResetDate?: string | null;
   updatedAt?: string;

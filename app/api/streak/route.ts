@@ -6,7 +6,7 @@ import { kv } from "@vercel/kv";
 type StreakRecord = {
   userId: string;
   currentStreak: number;
-  lastCheckInDate: string;
+  lastCheckInDate: string | null;
   goal: number;
   lastResetDate?: string | null;
   updatedAt: string;
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   const incoming: StreakRecord = {
     userId: body.userId,
     currentStreak: body.currentStreak ?? 0,
-    lastCheckInDate: body.lastCheckInDate ?? now,
+    lastCheckInDate: (body.lastCheckInDate ?? null) as string | null,
     goal: body.goal ?? 90,
     lastResetDate: body.lastResetDate ?? null,
     updatedAt: now,
