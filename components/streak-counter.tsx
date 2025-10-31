@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "./progress-ring";
 import { getOrCreateUserId, fetchStreak, upsertStreak } from "@/lib/api";
+import { useUser } from "@clerk/nextjs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ interface StreakData {
 }
 
 export function StreakCounter() {
+  const { user, isLoaded } = useUser();
   const [streak, setStreak] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [goal, setGoal] = useState(90);
@@ -42,7 +44,8 @@ export function StreakCounter() {
       }
 
       // Try fetch remote
-      const userId = getOrCreateUserId();
+      const authId = user?.id;
+      const userId = authId ?? getOrCreateUserId();
       const remote = await fetchStreak(userId);
 
       const pick = (() => {
@@ -90,8 +93,8 @@ export function StreakCounter() {
       setMounted(true);
     };
 
-    void init();
-  }, []);
+    if (isLoaded) void init();
+  }, [isLoaded, user?.id]);
 
   const saveStreak = async (newStreak: number) => {
     const now = new Date().toISOString();
@@ -103,7 +106,8 @@ export function StreakCounter() {
     };
     localStorage.setItem("streakData", JSON.stringify(data));
     setLastCheckInDate(now);
-    const userId = getOrCreateUserId();
+    const authId = user?.id;
+    const userId = authId ?? getOrCreateUserId();
     void upsertStreak({ userId, ...data });
   };
 
@@ -145,7 +149,8 @@ export function StreakCounter() {
       updatedAt: now,
     };
     localStorage.setItem("streakData", JSON.stringify(data));
-    const userId = getOrCreateUserId();
+    const authId = user?.id;
+    const userId = authId ?? getOrCreateUserId();
     void upsertStreak({ userId, ...data });
     setLastCheckInDate(null);
     setShowGoalSelector(true);
@@ -163,7 +168,8 @@ export function StreakCounter() {
       updatedAt: now,
     };
     localStorage.setItem("streakData", JSON.stringify(data));
-    const userId = getOrCreateUserId();
+    const authId = user?.id;
+    const userId = authId ?? getOrCreateUserId();
     void upsertStreak({ userId, ...data });
   };
 
