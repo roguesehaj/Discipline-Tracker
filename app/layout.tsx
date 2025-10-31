@@ -8,9 +8,37 @@ import "./globals.css";
 const dmSans = DM_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: {
+    default: "Focus Streak",
+    template: "%s | Focus Streak",
+  },
+  description:
+    "Build unbreakable discipline with a simple daily check‑in streak.",
+  metadataBase: new URL("https://discipline-tracker-nine.vercel.app"),
+  openGraph: {
+    title: "Focus Streak",
+    description:
+      "Build unbreakable discipline with a simple daily check‑in streak.",
+    url: "https://discipline-tracker-nine.vercel.app",
+    siteName: "Focus Streak",
+    images: [
+      {
+        url: "/placeholder.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Focus Streak preview",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Focus Streak",
+    description:
+      "Build unbreakable discipline with a simple daily check‑in streak.",
+    images: ["/placeholder.jpg"],
+  },
 };
 
 export default function RootLayout({
