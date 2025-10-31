@@ -1,8 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { ProgressRing } from "./progress-ring"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { ProgressRing } from "./progress-ring";
+import { getOrCreateUserId, fetchStreak, upsertStreak } from "@/lib/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,116 +12,166 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 interface StreakData {
-  currentStreak: number
-  lastCheckInDate: string
-  goal: number
+  currentStreak: number;
+  lastCheckInDate: string;
+  goal: number;
+  lastResetDate?: string | null;
+  updatedAt?: string;
 }
 
 export function StreakCounter() {
-  const [streak, setStreak] = useState(0)
-  const [mounted, setMounted] = useState(false)
-  const [goal, setGoal] = useState(90)
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false)
-  const [lastCheckInDate, setLastCheckInDate] = useState<string | null>(null)
-  const [showGoalSelector, setShowGoalSelector] = useState(false)
+  const [streak, setStreak] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [goal, setGoal] = useState(90);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+  const [lastCheckInDate, setLastCheckInDate] = useState<string | null>(null);
+  const [showGoalSelector, setShowGoalSelector] = useState(false);
 
-  const goalOptions = [15, 30, 60, 90, 180, 365]
+  const goalOptions = [15, 30, 60, 90, 180, 365];
 
   useEffect(() => {
-    // Initialize from localStorage
-    const stored = localStorage.getItem("streakData")
-    if (stored) {
-      const data: StreakData = JSON.parse(stored)
-      const today = new Date().toDateString()
-      const lastCheckIn = new Date(data.lastCheckInDate).toDateString()
-
-      if (today === lastCheckIn) {
-        setHasCheckedInToday(true)
-      } else {
-        const lastCheckInDateObj = new Date(data.lastCheckInDate)
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-
-        if (lastCheckInDateObj.toDateString() === yesterday.toDateString()) {
-          // User checked in yesterday, streak continues
-          setStreak(data.currentStreak)
-        } else {
-          // User missed a day, streak resets
-          setStreak(0)
-        }
+    // Initialize from localStorage then reconcile with server
+    const init = async () => {
+      let local: StreakData | null = null;
+      const stored = localStorage.getItem("streakData");
+      if (stored) {
+        local = JSON.parse(stored);
       }
-      setLastCheckInDate(data.lastCheckInDate)
-      setGoal(data.goal || 90)
-    } else {
-      setShowGoalSelector(true)
-    }
-    setMounted(true)
-  }, [])
 
-  const saveStreak = (newStreak: number) => {
+      // Try fetch remote
+      const userId = getOrCreateUserId();
+      const remote = await fetchStreak(userId);
+
+      const pick = (() => {
+        if (
+          remote &&
+          (!local?.updatedAt ||
+            (remote.updatedAt && remote.updatedAt > (local.updatedAt || "")))
+        ) {
+          return {
+            currentStreak: remote.currentStreak,
+            lastCheckInDate: remote.lastCheckInDate,
+            goal: remote.goal,
+            lastResetDate: remote.lastResetDate ?? null,
+            updatedAt: remote.updatedAt,
+          } as StreakData;
+        }
+        if (local) return local;
+        return null;
+      })();
+
+      if (pick) {
+        const today = new Date().toDateString();
+        const lastCheckIn = new Date(pick.lastCheckInDate).toDateString();
+        if (today === lastCheckIn) {
+          setHasCheckedInToday(true);
+          setStreak(pick.currentStreak);
+        } else {
+          const lastCheckInDateObj = new Date(pick.lastCheckInDate);
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          if (lastCheckInDateObj.toDateString() === yesterday.toDateString()) {
+            setStreak(pick.currentStreak);
+          } else {
+            setStreak(0);
+          }
+        }
+        setLastCheckInDate(pick.lastCheckInDate);
+        setGoal(pick.goal || 90);
+        // Ensure local has the chosen state
+        localStorage.setItem("streakData", JSON.stringify(pick));
+      } else {
+        setShowGoalSelector(true);
+      }
+
+      setMounted(true);
+    };
+
+    void init();
+  }, []);
+
+  const saveStreak = async (newStreak: number) => {
+    const now = new Date().toISOString();
     const data: StreakData = {
       currentStreak: newStreak,
-      lastCheckInDate: new Date().toISOString(),
+      lastCheckInDate: now,
       goal: goal,
-    }
-    localStorage.setItem("streakData", JSON.stringify(data))
-    setLastCheckInDate(new Date().toISOString())
-  }
+      updatedAt: now,
+    };
+    localStorage.setItem("streakData", JSON.stringify(data));
+    setLastCheckInDate(now);
+    const userId = getOrCreateUserId();
+    void upsertStreak({ userId, ...data });
+  };
 
   const handleCheckIn = () => {
-    let newStreak = streak
+    let newStreak = streak;
     if (!hasCheckedInToday) {
       if (lastCheckInDate) {
-        const lastCheckInDateObj = new Date(lastCheckInDate)
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
+        const lastCheckInDateObj = new Date(lastCheckInDate);
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
 
         if (lastCheckInDateObj.toDateString() === yesterday.toDateString()) {
           // Streak continues
-          newStreak = streak + 1
+          newStreak = streak + 1;
         } else {
           // Streak resets to 1
-          newStreak = 1
+          newStreak = 1;
         }
       } else {
         // First check-in ever
-        newStreak = 1
+        newStreak = 1;
       }
 
-      setStreak(newStreak)
-      setHasCheckedInToday(true)
-      saveStreak(newStreak)
+      setStreak(newStreak);
+      setHasCheckedInToday(true);
+      saveStreak(newStreak);
     }
-  }
+  };
 
   const handleReset = () => {
-    setStreak(0)
-    setHasCheckedInToday(false)
-    localStorage.removeItem("streakData")
-    setLastCheckInDate(null)
-    setShowGoalSelector(true)
-  }
+    setStreak(0);
+    setHasCheckedInToday(false);
+    const now = new Date().toISOString();
+    const data: StreakData = {
+      currentStreak: 0,
+      lastCheckInDate: now,
+      goal: goal,
+      lastResetDate: now,
+      updatedAt: now,
+    };
+    localStorage.setItem("streakData", JSON.stringify(data));
+    const userId = getOrCreateUserId();
+    void upsertStreak({ userId, ...data });
+    setLastCheckInDate(null);
+    setShowGoalSelector(true);
+  };
 
   const handleGoalSelect = (selectedGoal: number) => {
-    setGoal(selectedGoal)
-    setShowGoalSelector(false)
+    setGoal(selectedGoal);
+    setShowGoalSelector(false);
     // Save the goal
+    const now = new Date().toISOString();
     const data: StreakData = {
       currentStreak: streak,
-      lastCheckInDate: lastCheckInDate || new Date().toISOString(),
+      lastCheckInDate: lastCheckInDate || now,
       goal: selectedGoal,
-    }
-    localStorage.setItem("streakData", JSON.stringify(data))
-  }
+      updatedAt: now,
+    };
+    localStorage.setItem("streakData", JSON.stringify(data));
+    const userId = getOrCreateUserId();
+    void upsertStreak({ userId, ...data });
+  };
 
-  if (!mounted) return null
+  if (!mounted) return null;
 
-  const percentage = Math.min((streak / goal) * 100, 100)
-  const daysRemaining = Math.max(goal - streak, 0)
-  const isGoalReached = percentage >= 100
+  const percentage = Math.min((streak / goal) * 100, 100);
+  const daysRemaining = Math.max(goal - streak, 0);
+  const isGoalReached = percentage >= 100;
 
   return (
     <div className="flex flex-col items-center space-y-8">
@@ -128,7 +179,9 @@ export function StreakCounter() {
       {showGoalSelector && (
         <div className="w-full mb-4">
           <div className="bg-secondary/50 backdrop-blur rounded-lg p-6 border border-border">
-            <h3 className="text-center text-lg font-light text-foreground mb-4">Choose Your Goal</h3>
+            <h3 className="text-center text-lg font-light text-foreground mb-4">
+              Choose Your Goal
+            </h3>
             <div className="grid grid-cols-3 gap-3">
               {goalOptions.map((option) => (
                 <Button
@@ -157,11 +210,17 @@ export function StreakCounter() {
           background="hsl(var(--muted))"
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-6xl md:text-7xl font-light text-primary mb-2">{streak}</div>
+          <div className="text-6xl md:text-7xl font-light text-primary mb-2">
+            {streak}
+          </div>
           <div className="text-sm text-muted-foreground font-light tracking-wider">
             DAY{streak === 1 ? "" : "S"} OF FOCUS
           </div>
-          {isGoalReached && <div className="text-xs text-accent font-semibold mt-2 animate-pulse">GOAL ACHIEVED!</div>}
+          {isGoalReached && (
+            <div className="text-xs text-accent font-semibold mt-2 animate-pulse">
+              GOAL ACHIEVED!
+            </div>
+          )}
         </div>
       </div>
 
@@ -170,17 +229,21 @@ export function StreakCounter() {
         <div className="flex items-center justify-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary" />
           <p className="text-muted-foreground text-sm">
-            Goal: <span className="text-foreground font-medium">{goal} days</span>
+            Goal:{" "}
+            <span className="text-foreground font-medium">{goal} days</span>
           </p>
           <div className="w-2 h-2 rounded-full bg-primary" />
         </div>
         <p className="text-sm text-foreground font-light">
           {daysRemaining > 0 ? (
             <>
-              <span className="font-semibold text-accent">{daysRemaining}</span> days to reach your goal
+              <span className="font-semibold text-accent">{daysRemaining}</span>{" "}
+              days to reach your goal
             </>
           ) : (
-            <span className="text-accent">Goal achieved! Keep the momentum going!</span>
+            <span className="text-accent">
+              Goal achieved! Keep the momentum going!
+            </span>
           )}
         </p>
         <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -189,7 +252,9 @@ export function StreakCounter() {
             style={{ width: `${percentage}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground font-light">{Math.round(percentage)}% progress</p>
+        <p className="text-xs text-muted-foreground font-light">
+          {Math.round(percentage)}% progress
+        </p>
       </div>
 
       {/* Check In Button */}
@@ -238,11 +303,15 @@ export function StreakCounter() {
           <AlertDialogContent>
             <AlertDialogTitle>Reset Streak?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reset your {streak}-day streak? This action cannot be undone.
+              Are you sure you want to reset your {streak}-day streak? This
+              action cannot be undone.
             </AlertDialogDescription>
             <div className="flex gap-3 justify-end">
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleReset} className="bg-destructive">
+              <AlertDialogAction
+                onClick={handleReset}
+                className="bg-destructive"
+              >
                 Reset
               </AlertDialogAction>
             </div>
@@ -250,5 +319,5 @@ export function StreakCounter() {
         </AlertDialog>
       </div>
     </div>
-  )
+  );
 }
