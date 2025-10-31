@@ -9,8 +9,8 @@ const dmSans = DM_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Focus Streak",
-    template: "%s | Focus Streak",
+    default: "Focus Streak by SB",
+    template: "%s | Focus Streak by SB",
   },
   description:
     "Build unbreakable discipline with a simple daily check‑in streak.",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     description:
       "Build unbreakable discipline with a simple daily check‑in streak.",
     url: "https://discipline-tracker-nine.vercel.app",
-    siteName: "Focus Streak",
+    siteName: "Focus Streak by SB",
     images: [
       {
         url: "/placeholder.jpg",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Focus Streak",
+    title: "Focus Streak by SB",
     description:
       "Build unbreakable discipline with a simple daily check‑in streak.",
     images: ["/placeholder.jpg"],
