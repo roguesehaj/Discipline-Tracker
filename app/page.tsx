@@ -37,7 +37,15 @@ export default function Page() {
         {/* Header */}
         <div className="text-center mb-12 animate-fade-in-up">
           <h1 className="text-5xl md:text-6xl font-light text-foreground mb-3 tracking-tight">
-            Focus Streak
+            Focus Streak by{" "}
+            <a
+              href="https://github.com/roguesehaj"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              SB
+            </a>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground font-light">
             Build unbreakable discipline
